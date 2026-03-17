@@ -1,0 +1,7 @@
+{
+  "friction": 0.18348623853211005,
+  "robot_mass": 3.2,
+  "actuator_gain": 100.0,
+  "max_speed": 1.954686418868131,
+  "motor_delay": 0.049333333333333285
+}
