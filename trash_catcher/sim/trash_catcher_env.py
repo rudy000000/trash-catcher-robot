@@ -4,29 +4,20 @@ from gymnasium import spaces
 import sys
 sys.path.append('/workspace/trash_catcher/perception')
 sys.path.append('/workspace/trash_catcher/planning')
-from trajectory import predict_landing, TrajectoryEKF
-from motion_planner import plan_motion
+from trajectory import predict_landing
 
 
 class TrashCatcherEnv(gym.Env):
-    """
-    ゴミキャッチロボットのシミュレーション環境。
-    観測: [ロボットx, ロボットy, 着地点x, 着地点y, 残り時間]
-    行動: [目標x, 目標y] (移動先)
-    報酬: キャッチ成功=+100, 失敗=-10, 近づくほど小報酬
-    """
 
     def __init__(self):
         super().__init__()
 
-        # 行動空間: 移動先 [x, y] (-5m ~ 5m)
         self.action_space = spaces.Box(
-            low=np.array([-5.0, -5.0]),
-            high=np.array([5.0, 5.0]),
+            low=np.array([-1.0, -1.0]),
+            high=np.array([1.0, 1.0]),
             dtype=np.float32
         )
 
-        # 観測空間: [robot_x, robot_y, land_x, land_y, time_left]
         self.observation_space = spaces.Box(
             low=np.array([-5.0, -5.0, -5.0, -5.0, 0.0]),
             high=np.array([5.0, 5.0, 5.0, 5.0, 5.0]),
@@ -36,7 +27,9 @@ class TrashCatcherEnv(gym.Env):
         self.robot_pos = np.zeros(2)
         self.landing_pos = np.zeros(2)
         self.time_left = 0.0
-        self.catch_radius = 0.3  # キャッチ判定半径 (m)
+        self.catch_radius = 0.3
+        self.max_speed = 1.5
+        self.dt = 0.1
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -44,40 +37,43 @@ class TrashCatcherEnv(gym.Env):
         # ロボットをランダムな位置に配置
         self.robot_pos = self.np_random.uniform(-2.0, 2.0, size=2).astype(np.float32)
 
-        # ゴミをランダムに投げる（Domain Randomization）
+        # Domain Randomization: ゴミの投げ方をランダム化
         pos0 = np.array([
-            self.np_random.uniform(-1.0, 1.0),
-            self.np_random.uniform(-1.0, 1.0),
-            self.np_random.uniform(1.5, 3.0)   # 高さ1.5m〜3m
+            self.np_random.uniform(-2.0, 2.0),
+            self.np_random.uniform(-2.0, 2.0),
+            self.np_random.uniform(1.0, 4.0)
         ])
         vel0 = np.array([
-            self.np_random.uniform(-2.0, 2.0),
-            self.np_random.uniform(-2.0, 2.0),
-            self.np_random.uniform(1.0, 4.0)   # 上向き成分
+            self.np_random.uniform(-3.0, 3.0),
+            self.np_random.uniform(-3.0, 3.0),
+            self.np_random.uniform(0.5, 5.0)
         ])
 
-        result = predict_landing(pos0, vel0)
-        self.landing_pos = np.array([
-            result["landing_x"],
-            result["landing_y"]
-        ], dtype=np.float32)
-        self.time_left = float(result["time_of_flight"])
+        try:
+            result = predict_landing(pos0, vel0)
+            self.landing_pos = np.clip(
+                np.array([result["landing_x"], result["landing_y"]], dtype=np.float32),
+                -5.0, 5.0
+            )
+            self.time_left = float(result["time_of_flight"])
+        except RuntimeError:
+            self.landing_pos = np.zeros(2, dtype=np.float32)
+            self.time_left = 2.0
 
         return self._get_obs(), {}
 
     def step(self, action):
-        # 行動: 速度として扱う
-        velocity = np.clip(action, -1.5, 1.5)
-        dt = 0.1
+        velocity = np.clip(action, -1.0, 1.0) * self.max_speed
+        dt = self.dt
 
-        # 位置を更新
+        prev_dist = np.linalg.norm(self.robot_pos - self.landing_pos)
+
         self.robot_pos = np.clip(
             self.robot_pos + velocity * dt,
             -5.0, 5.0
         ).astype(np.float32)
         self.time_left -= dt
 
-        # 報酬計算
         dist_to_landing = np.linalg.norm(self.robot_pos - self.landing_pos)
         caught = dist_to_landing < self.catch_radius and self.time_left >= 0
 
@@ -85,10 +81,11 @@ class TrashCatcherEnv(gym.Env):
             reward = 100.0
             terminated = True
         elif self.time_left < 0:
-            reward = -10.0 - dist_to_landing
+            reward = -20.0
             terminated = True
         else:
-            reward = -dist_to_landing * 0.5
+            progress = prev_dist - dist_to_landing
+            reward = progress * 5.0
             terminated = False
 
         truncated = False
@@ -110,11 +107,3 @@ if __name__ == "__main__":
     print(f"初期観測: {obs}")
     print(f"着地点: ({obs[2]:.2f}, {obs[3]:.2f})")
     print(f"残り時間: {obs[4]:.2f}秒")
-
-    # ランダム行動で5ステップ試す
-    for i in range(5):
-        action = env.action_space.sample()
-        obs, reward, terminated, truncated, _ = env.step(action)
-        print(f"ステップ{i+1}: 報酬={reward:.2f} 終了={terminated}")
-        if terminated:
-            break

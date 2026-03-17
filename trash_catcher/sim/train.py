@@ -27,7 +27,7 @@ if __name__ == "__main__":
         n_epochs=10,
     )
 
-    model.learn(total_timesteps=200_000)
+    model.learn(total_timesteps=1_000_000)
     model.save("/workspace/trash_catcher/sim/ppo_trash_catcher")
     print("モデル保存完了!")
 
