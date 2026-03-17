@@ -1,0 +1,62 @@
+<mujoco model="omni_trash_catcher">
+  <option timestep="0.01" gravity="0 0 -9.81"/>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.8 0.9 1.0" rgb2="0.4 0.6 0.8" width="512" height="512"/>
+    <texture name="floor_tex" type="2d" builtin="checker" rgb1="0.8 0.8 0.8" rgb2="0.6 0.6 0.6" width="512" height="512"/>
+    <material name="floor_mat" texture="floor_tex" texrepeat="5 5"/>
+    <material name="robot_mat" rgba="0.2 0.5 0.8 1"/>
+    <material name="wheel_mat" rgba="0.1 0.1 0.1 1"/>
+  </asset>
+
+  <worldbody>
+    <!-- 床 -->
+    <geom name="floor" type="plane" size="10 10 0.1" material="floor_mat"/>
+
+    <!-- ロボット本体 -->
+    <body name="robot" pos="0 0 0.15">
+      <freejoint name="root"/>
+
+      <!-- 本体 -->
+      <geom name="body" type="cylinder" size="0.2 0.1" material="robot_mat" mass="3.0"/>
+
+      <!-- ゴミ箱（上部） -->
+      <geom name="basket" type="cylinder" size="0.18 0.08" pos="0 0 0.18" rgba="0.8 0.8 0.2 0.5" mass="0.5"/>
+
+      <!-- 前輪 -->
+      <body name="wheel_front" pos="0.15 0 -0.08">
+        <geom name="wf" type="cylinder" size="0.05 0.02" euler="90 0 0" material="wheel_mat" mass="0.2"/>
+      </body>
+
+      <!-- 後左輪 -->
+      <body name="wheel_back_left" pos="-0.1 0.13 -0.08">
+        <geom name="wbl" type="cylinder" size="0.05 0.02" euler="90 0 0" material="wheel_mat" mass="0.2"/>
+      </body>
+
+      <!-- 後右輪 -->
+      <body name="wheel_back_right" pos="-0.1 -0.13 -0.08">
+        <geom name="wbr" type="cylinder" size="0.05 0.02" euler="90 0 0" material="wheel_mat" mass="0.2"/>
+      </body>
+
+      <!-- センサー（カメラ位置） -->
+      <site name="camera_site" pos="0 0 0.25" size="0.02"/>
+    </body>
+
+    <!-- ゴミ（投げられるボール） -->
+    <body name="trash" pos="2 0 1.5">
+      <freejoint name="trash_joint"/>
+      <geom name="trash_geom" type="sphere" size="0.05" rgba="1 0.3 0.3 1" mass="0.1"/>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <!-- オムニホイールの速度制御 -->
+    <velocity name="vx" joint="root" gear="1 0 0 0 0 0" kv="100"/>
+    <velocity name="vy" joint="root" gear="0 1 0 0 0 0" kv="100"/>
+  </actuator>
+
+  <sensor>
+    <framepos name="robot_pos" objtype="body" objname="robot"/>
+    <framepos name="trash_pos" objtype="body" objname="trash"/>
+  </sensor>
+</mujoco>
