@@ -66,15 +66,16 @@ class TrashCatcherEnv(gym.Env):
         return self._get_obs(), {}
 
     def step(self, action):
-        # 行動: 目標位置へ移動
-        target = np.clip(action, -5.0, 5.0)
+        # 行動: 速度として扱う
+        velocity = np.clip(action, -1.5, 1.5)
+        dt = 0.1
 
-        # 移動距離に応じて時間を消費
-        dist = np.linalg.norm(target - self.robot_pos)
-        max_speed = 1.5
-        move_time = dist / max_speed
-        self.time_left -= move_time
-        self.robot_pos = target.astype(np.float32)
+        # 位置を更新
+        self.robot_pos = np.clip(
+            self.robot_pos + velocity * dt,
+            -5.0, 5.0
+        ).astype(np.float32)
+        self.time_left -= dt
 
         # 報酬計算
         dist_to_landing = np.linalg.norm(self.robot_pos - self.landing_pos)
@@ -84,10 +85,10 @@ class TrashCatcherEnv(gym.Env):
             reward = 100.0
             terminated = True
         elif self.time_left < 0:
-            reward = -10.0 - dist_to_landing  # 遅刻ペナルティ
+            reward = -10.0 - dist_to_landing
             terminated = True
         else:
-            reward = -dist_to_landing * 0.1   # 近づくほど小報酬
+            reward = -dist_to_landing * 0.5
             terminated = False
 
         truncated = False
