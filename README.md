@@ -21,8 +21,8 @@ Designed as an MIT portfolio project to demonstrate robotics, control theory, an
 ## Progress
 - [x] Phase 1: Environment setup
 - [x] Phase 2: Trajectory prediction module (5 unit tests passing)
-- [ ] Phase 3: Motion planning module
-- [ ] Phase 4: Sim-to-Real training
+- [x] Phase 3: Motion planning module (5 unit tests passing)
+- [x] Phase 4: Sim-to-Real training (success rate: 20% @ 50k steps)
 - [ ] Phase 5: Real robot deployment
 
 ## Results
