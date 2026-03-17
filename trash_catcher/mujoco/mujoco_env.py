@@ -13,7 +13,11 @@ class MuJoCoTrashCatcherEnv(gym.Env):
     物理シミュレーターで台車の動きをシミュレート。
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        catch_radius: float = 0.5,
+        max_speed: float = 2.0,
+    ):
         super().__init__()
 
         self.model = mujoco.MjModel.from_xml_path(
@@ -33,8 +37,8 @@ class MuJoCoTrashCatcherEnv(gym.Env):
             dtype=np.float32
         )
 
-        self.catch_radius = 0.5
-        self.max_speed = 2.0
+        self.catch_radius = catch_radius
+        self.max_speed = max_speed
         self.dt = 0.1
         self.landing_pos = np.zeros(2)
         self.time_left = 0.0
@@ -43,13 +47,29 @@ class MuJoCoTrashCatcherEnv(gym.Env):
         super().reset(seed=seed)
         mujoco.mj_resetData(self.model, self.data)
 
+        # Domain Randomization: 床の摩擦をランダム化
+        floor_geom_id = mujoco.mj_name2id(
+            self.model, mujoco.mjtObj.mjOBJ_GEOM, "floor"
+        )
+        self.model.geom_friction[floor_geom_id][0] = self.np_random.uniform(0.3, 1.0)
+
+        # Domain Randomization: ロボットの質量をランダム化
+        robot_body_id = mujoco.mj_name2id(
+            self.model, mujoco.mjtObj.mjOBJ_BODY, "robot"
+        )
+        self.model.body_mass[robot_body_id] = self.np_random.uniform(2.5, 4.5)
+
+        # Domain Randomization: アクチュエータのゲインをランダム化
+        self.model.actuator_gainprm[0][0] = self.np_random.uniform(80, 120)
+        self.model.actuator_gainprm[1][0] = self.np_random.uniform(80, 120)
+
         # ロボットをランダムな位置に配置
         robot_x = self.np_random.uniform(-1.0, 1.0)
         robot_y = self.np_random.uniform(-1.0, 1.0)
         self.data.qpos[0] = robot_x
         self.data.qpos[1] = robot_y
 
-        # ゴミの初期位置・速度をランダム化（Domain Randomization）
+        # ゴミの初期位置・速度をランダム化
         pos0 = np.array([
             self.np_random.uniform(-1.0, 1.0),
             self.np_random.uniform(-1.0, 1.0),
@@ -116,13 +136,19 @@ class MuJoCoTrashCatcherEnv(gym.Env):
     def _get_obs(self):
         robot_pos = self.data.qpos[:2].copy()
         relative = self.landing_pos - robot_pos
-        return np.array([
+
+        # 実機のセンサーノイズを模擬
+        noise = np.random.normal(0, 0.02, 5).astype(np.float32)
+
+        obs = np.array([
             robot_pos[0],
             robot_pos[1],
             relative[0],
             relative[1],
             self.time_left
         ], dtype=np.float32)
+
+        return np.clip(obs + noise, -10.0, 10.0)
 
 
 if __name__ == "__main__":
