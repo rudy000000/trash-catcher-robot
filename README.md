@@ -22,7 +22,7 @@ Designed as an MIT portfolio project to demonstrate robotics, control theory, an
 - [x] Phase 1: Environment setup
 - [x] Phase 2: Trajectory prediction module (5 unit tests passing)
 - [x] Phase 3: Motion planning module (5 unit tests passing)
-- [x] Phase 4: Sim-to-Real training (MuJoCo physics simulation, 5 unit tests passing)
+- [x] Phase 4: Sim-to-Real training (MuJoCo physics simulation, success rate: 100%)
 - [ ] Phase 5: Real robot deployment
 
 ## Results
